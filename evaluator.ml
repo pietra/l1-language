@@ -5,7 +5,7 @@
 	INF05516 - Semântica Formal
 	Prof. Dr. Alvaro Moreira
 
-    Camila Primieri - 
+    Camila Primieri - 172662
     Pietra Freitas - 242285
 
     --------------------------------------------
@@ -14,13 +14,11 @@
 
 *)
 
-(* TODO: inserir listas *)
-
 type variable = string
 
-type operator = Sum | Diff | Mult | Div | Eq | Leq 
+type operator = Sum | Diff | Mult | Div | Eq | And | Or | Not
 
-type tipo  = TyInt | TyBool | TyFn of tipo * tipo 
+type tipo  = TyX | TyInt | TyBool | TyFn of tipo * tipo | TyList of tipo
 
 
 type expr = Num of int 
@@ -32,10 +30,19 @@ type expr = Num of int
           | Lam of variable * tipo * expr 
           | Let of variable * tipo * expr * expr
           | Lrec of variable * tipo * tipo * variable * tipo * expr * expr
+          | Nil of nil
+          | List of list
+          | Isempty of expr
+          | Hd of expr
+          | Tl of expr
+          | Raise of exn
+          | Try of expr * expr
+
 
 type value = Vnum of int 
            | Vbool of bool 
            | Vclos of variable * expr * env
            | Vrclos of variable * variable * expr * env
 and  
-     env = (variable * value) list 
+     env = (variable * value) list
+
