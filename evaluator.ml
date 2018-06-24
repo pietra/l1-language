@@ -30,8 +30,8 @@ type expr = Num of int
           | Lam of variable * tipo * expr 
           | Let of variable * tipo * expr * expr
           | Lrec of variable * tipo * tipo * variable * tipo * expr * expr
-          | Nil of nil
-          | List of list
+          | Nil of expr
+          | List of expr
           | Isempty of expr
           | Hd of expr
           | Tl of expr
