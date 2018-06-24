@@ -16,46 +16,26 @@
 
 (* TODO: inserir listas *)
 
-type variable = string;;
+type variable = string
 
-type operator =
-	Sum
-	| Sub
-	| Mult
-	| Div
-	| Equal
-	| And
-	| Or
-	| Not
-;;
+type operator = Sum | Diff | Mult | Div | Eq | Leq 
 
-type tipo =
-	TyInt
-	| TyBool
-	| TyFn of tipo * tipo
-	| TyLst(* TODO: list *)
-;;
+type tipo  = TyInt | TyBool | TyFn of tipo * tipo 
 
-type expr =
-	Num of int
-	| Bool of bool
-	| Bop of expr * operator * expr
-	| If of expr * expr * expr
-	| Var of variable
-	| App of expr * expr
-	| Func of variable * tipo * expr
-	| Let of variable * tipo * expr * expr
-	| LetRec of variable * (tipo * tipo) * (variable * tipo * expr) * expr
-	| Head of variable (* TODO: list *)
-	| Tail of variable (* TODO: list *)
-;;
 
-type value =
-	Vnum of int
-	| Vbool of bool
-	| Vclos of variable * expr * env
-	| Vrclos of variable * variable * expr * env
-	(* TODO: list *)
-and
-	env = (variable * value) list
-;;
+type expr = Num of int 
+          | Bool of bool 
+          | Bop of operator * expr * expr
+          | If of expr * expr * expr 
+          | Var of variable 
+          | App of expr * expr 
+          | Lam of variable * tipo * expr 
+          | Let of variable * tipo * expr * expr
+          | Lrec of variable * tipo * tipo * variable * tipo * expr * expr
+
+type value = Vnum of int 
+           | Vbool of bool 
+           | Vclos of variable * expr * env
+           | Vrclos of variable * variable * expr * env
+and  
+     env = (variable * value) list 
