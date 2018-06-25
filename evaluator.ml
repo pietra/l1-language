@@ -92,17 +92,17 @@ let emptyEnv : env = []
   ALGORITMO TYPEINFER
 *)
 
-(* Recebe o conjunto de tipos e o programa para ser testado *)
-typeinfer(typeSet, program) =
+(* Recebe o ambiente de tipos e o programa para ser testado *)
+typeinfer(typeEnv, program) =
 
     let
         (* A função collectTyEqs retorna um tipo (ou variável de tipo) e um conjunto de equações de tipo *)
-        (ty, typeEqSet) = collectTyEqs(typeSet, program)
+        (ty, typeEqSet) = collectTyEqs(typeEnv, program)
 
         (* A função unify retorna um substituição sigma, que é um mapeamento de variáveis de tipo para tipos 
            Pode falhar caso o conjunto não tenha solução, porque o programa é mal tipado *)
         sigma = unify(typeEqSet)
     in
-        (* A função applysubs aplica a essa substituição ao tipo retornado por collectTyEqs e retorna o tipo final da expressão *)
-        applysubs(sigma, ty)
+        (* A função applySubs aplica a essa substituição ao tipo retornado por collectTyEqs e retorna o tipo final da expressão *)
+        applySubs(sigma, ty)
 end
