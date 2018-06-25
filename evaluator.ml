@@ -10,15 +10,21 @@
 
     --------------------------------------------
 
-    Avaliador da linguagem L1 com listas e exceções de acordo com a semântica operacional Big Step de L1
+    Avaliador da linguagem L1 com listas e exceções de acordo com a semântica operacional de L1
+*)
 
+
+(*
+  LINGUAGEM L1
 *)
 
 type variable = string
 
+
 type operator = Sum | Diff | Mult | Div | Eq | And | Or | Not
 
-type tipo  = TyX | TyInt | TyBool | TyFn of tipo * tipo | TyList of tipo
+
+type tipo  = TyVar of string | TyInt | TyBool | TyFn of tipo * tipo | TyList of tipo
 
 
 type expr = Num of int 
@@ -30,12 +36,12 @@ type expr = Num of int
           | Lam of variable * tipo * expr 
           | Let of variable * tipo * expr * expr
           | Lrec of variable * tipo * tipo * variable * tipo * expr * expr
-          | Nil of expr
-          | List of expr
+          | Nil
+          | List of expr * expr
           | Isempty of expr
           | Hd of expr
           | Tl of expr
-          | Raise of exn
+          | Raise
           | Try of expr * expr
 
 
@@ -46,3 +52,57 @@ type value = Vnum of int
 and  
      env = (variable * value) list
 
+
+(*
+  AMBIENTE
+*)
+
+(* Inclui variáveis novas no ambiente *)
+let updateEnv variable tipo environment : env = match environment with
+  |[] -> [(variable, tipo)]
+  | hd::tl -> List.append [(variable, tipo)] environment
+
+(* Procura uma variável específica no ambiente. Se não achar, retorna Raise *)
+let rec searchEnv variable environment : tipo = match environment with
+  | [] -> Raise
+  | (k, v)::tl ->
+    if (k = variable)
+    then v
+    else searchEnv variable tl
+
+let emptyEnv : env = []
+
+
+(* 
+  FUNÇÃO COLLECTTYEQS
+*)
+
+
+(* 
+  FUNÇÃO UNIFY
+*)
+
+
+(* 
+  FUNÇÃO APPLYSUBS
+*)
+
+
+(* 
+  ALGORITMO TYPEINFER
+*)
+
+(* Recebe o conjunto de tipos e o programa para ser testado *)
+typeinfer(typeSet, program) =
+
+    let
+        (* A função collectTyEqs retorna um tipo (ou variável de tipo) e um conjunto de equações de tipo *)
+        (ty, typeEqSet) = collectTyEqs(typeSet, program)
+
+        (* A função unify retorna um substituição sigma, que é um mapeamento de variáveis de tipo para tipos 
+           Pode falhar caso o conjunto não tenha solução, porque o programa é mal tipado *)
+        sigma = unify(typeEqSet)
+    in
+        (* A função applysubs aplica a essa substituição ao tipo retornado por collectTyEqs e retorna o tipo final da expressão *)
+        applysubs(sigma, ty)
+end
