@@ -1,9 +1,9 @@
 (*
-	UNIVERSIDADE FEDERAL DO RIO GRANDE DO SUL
-	INSTITUTO DE INFORMÁTICA
-	DEPARTAMENTO DE INFORMÁTICA TEÓRICA
-	INF05516 - Semântica Formal
-	Prof. Dr. Alvaro Moreira
+  UNIVERSIDADE FEDERAL DO RIO GRANDE DO SUL
+  INSTITUTO DE INFORMÁTICA
+  DEPARTAMENTO DE INFORMÁTICA TEÓRICA
+  INF05516 - Semântica Formal
+  Prof. Dr. Alvaro Moreira
 
     Camila Primieri - 172662
     Pietra Freitas - 242285
@@ -21,10 +21,10 @@
 type variable = string;;
 
 
-type operator = Sum | Diff | Mult | Div | Eq | And | Or | Not;;
+type operator = Sum | Diff | Mult | Div | Eq | And | Or
+;;
 
-
-type tipo = TyVar of string 
+type tipo = TyX of string
             | TyInt 
             | TyBool 
             | TyFn of tipo * tipo 
@@ -37,6 +37,7 @@ and
 type expr = Num of int 
           | Bool of bool 
           | Bop of operator * expr * expr
+          | Not of expr
           | If of expr * expr * expr 
           | Var of variable 
           | App of expr * expr 
@@ -72,9 +73,9 @@ let updateEnv variable tipo environment : typeEnv = match environment with
   | hd::tl -> List.append [(variable, tipo)] environment
 ;;
 
-(* Procura uma variável específica no ambiente. Se não achar, retorna Raise *)
+(* Procura uma variável específica no ambiente. Se não achar, retorna o tipo de Raise *)
 let rec searchEnv variable environment : tipo = match environment with
-  | [] -> Raise
+  | [] -> TyX("not_found")
   | (k, v)::tl ->
     if (k = variable)
     then v
@@ -109,6 +110,7 @@ let unify typeEqSet = TyInt
 let applySubs sigma ty = TyBool
 
 ;;
+
 
 (* 
   ALGORITMO TYPEINFER
