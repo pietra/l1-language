@@ -115,6 +115,17 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
           TyBool -> (TyBool, [e], [exp1])
         | _ -> (TyX("NOT not found"), [], [])
       )
+  | If(e1, e2, e3) ->
+      let (exp1, aux1, aux2) = collectTyEqs environment e1 in
+      if exp1 = TyBool
+      then 
+        let (exp2, aux1, aux2) = collectTyEqs environment e2 in
+        let (exp3, aux1, aux2) = collectTyEqs environment e3 in
+        ( if exp2 = exp3
+          then (exp2, [e1; e2; e3], [exp1; exp2; exp3])
+          else (TyX("IF error"), [], [])
+        ) 
+      else (TyX("IF not found"), [], [])
   | _ -> (TyX("Expression not found"), [], [])
 ;;
 
