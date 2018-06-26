@@ -1,0 +1,10 @@
+### Starting build.
+# Target: evaluator.ml.depends, tags: { extension:ml, file:evaluator.ml, ocaml, ocamldep, quiet }
+/usr/bin/ocamldep -modules evaluator.ml > evaluator.ml.depends # cached
+# Target: evaluator.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:evaluator.cmo, file:evaluator.ml, implem, ocaml, quiet }
+/usr/bin/ocamlc -c -o evaluator.cmo evaluator.ml # cached
+# Target: evaluator.cmx, tags: { compile, extension:cmx, extension:ml, file:evaluator.cmx, file:evaluator.ml, implem, native, ocaml, quiet }
+/usr/bin/ocamlopt -c -o evaluator.cmx evaluator.ml # cached
+# Target: evaluator.native, tags: { dont_link_with, extension:native, file:evaluator.native, link, native, ocaml, program, quiet }
+/usr/bin/ocamlopt evaluator.cmx -o evaluator.native # cached
+# Compilation successful.
