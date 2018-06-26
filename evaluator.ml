@@ -41,7 +41,7 @@ type expr = Num of int
           | If of expr * expr * expr 
           | Var of variable 
           | App of expr * expr 
-          | Lam of variable * tipo * expr 
+          | Func of variable * tipo * expr 
           | Let of variable * tipo * expr * expr
           | Lrec of variable * tipo * tipo * variable * tipo * expr * expr
           | Nil
@@ -92,41 +92,72 @@ let emptyEnv : typeEnv = []
 *)
 
 let rec collectTyEqs (environment:typeEnv) (e:expr) = 
-  match e with
-    Num(e) -> (TyInt, [], [])
-  | Bool(e) -> (TyBool, [], [])
-  | Bop(op, e1, e2) ->
-      let (exp1, aux1, aux2) = collectTyEqs environment e1 in
-      let (exp2, aux1, aux2) = collectTyEqs environment e2 in
-      (match op, exp1, exp2 with
+    match e with
 
-          Sum, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
-        | Sub, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
-        | Mult, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
-        | Div, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
-        | Eq, TyInt, TyInt -> (TyBool, [e1; e2], [exp1; exp2])
-        | And, TyBool, TyBool -> (TyBool, [e1; e2], [exp1; exp2])
-        | Or, TyBool, TyBool -> (TyBool, [e1; e2], [exp1; exp2])
-        | _ -> (TyX("BOP not found"), [], [])
-      )
-  | Not(e) -> 
-      let (exp1, aux1, aux2) = collectTyEqs environment e in
-      (match exp1 with 
-          TyBool -> (TyBool, [e], [exp1])
-        | _ -> (TyX("NOT not found"), [], [])
-      )
-  | If(e1, e2, e3) ->
-      let (exp1, aux1, aux2) = collectTyEqs environment e1 in
-      if exp1 = TyBool
-      then 
+    (* VALORES *)
+      Num(e) -> (TyInt, [], [])
+    | Bool(e) -> (TyBool, [], [])
+
+    (* OPERAÇÕES BINÁRIAS *)
+    | Bop(op, e1, e2) ->
+        let (exp1, aux1, aux2) = collectTyEqs environment e1 in
         let (exp2, aux1, aux2) = collectTyEqs environment e2 in
-        let (exp3, aux1, aux2) = collectTyEqs environment e3 in
-        ( if exp2 = exp3
-          then (exp2, [e1; e2; e3], [exp1; exp2; exp3])
-          else (TyX("IF error"), [], [])
-        ) 
-      else (TyX("IF not found"), [], [])
-  | _ -> (TyX("Expression not found"), [], [])
+        (match op, exp1, exp2 with
+
+            Sum, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
+          | Sub, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
+          | Mult, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
+          | Div, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
+          | Eq, TyInt, TyInt -> (TyBool, [e1; e2], [exp1; exp2])
+          | And, TyBool, TyBool -> (TyBool, [e1; e2], [exp1; exp2])
+          | Or, TyBool, TyBool -> (TyBool, [e1; e2], [exp1; exp2])
+          | _ -> (TyX("BOP not found"), [], [])
+        )
+
+    (* NOT *)
+    | Not(e) -> 
+        let (exp1, aux1, aux2) = collectTyEqs environment e in
+        (match exp1 with 
+            TyBool -> (TyBool, [e], [exp1])
+          | _ -> (TyX("NOT not found"), [], [])
+        )
+
+    (* CONDICIONAL *)
+    | If(e1, e2, e3) ->
+        let (exp1, aux1, aux2) = collectTyEqs environment e1 in
+        if exp1 = TyBool
+        then 
+          let (exp2, aux1, aux2) = collectTyEqs environment e2 in
+          let (exp3, aux1, aux2) = collectTyEqs environment e3 in
+          ( if exp2 = exp3
+            then (exp2, [e1; e2; e3], [exp1; exp2; exp3])
+            else (TyX("IF error"), [], [])
+          ) 
+        else (TyX("IF not found"), [], [])
+
+    (* VARIÁVEL *)
+    | Var(variable) -> 
+        let var = searchEnv variable environment in
+        (var, [], [])
+
+    (* APLICAÇÃO *)
+    | App(e1, e2) ->
+        let (exp1, aux1, aux2) = collectTyEqs environment e1 in
+        let (exp2, aux1, aux2) = collectTyEqs environment e2 in
+        (match exp1 with
+            TyFn(t1, t2) -> (if t2 = exp2
+                              then (exp2, [e1; e2], [TyFn(exp1, exp2); TyFn(exp1, exp2)])
+                              else (TyX("APP not found"), [], []))
+          | _ -> (TyX("APP not found"), [], [])
+        )
+
+    (* FUNÇÃO *)
+    | Func(variable, t, e) -> 
+        let (exp1, aux1, aux2) = collectTyEqs (updateEnv variable t environment) e in
+        (TyFn(t, exp1), [e], [])
+
+    (* ERRO *)
+    | _ -> (TyX("Expression not found"), [], [])
 ;;
 
 (* 
