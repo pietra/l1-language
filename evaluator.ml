@@ -21,7 +21,7 @@
 type variable = string;;
 
 
-type operator = Sum | Diff | Mult | Div | Eq | And | Or
+type operator = Sum | Sub | Mult | Div | Eq | And | Or
 ;;
 
 type tipo = TyX of string
@@ -75,7 +75,7 @@ let updateEnv variable tipo environment : typeEnv = match environment with
 
 (* Procura uma variável específica no ambiente. Se não achar, retorna o tipo de Raise *)
 let rec searchEnv variable environment : tipo = match environment with
-  | [] -> TyX("not_found")
+  | [] -> TyX("variable not found")
   | (k, v)::tl ->
     if (k = variable)
     then v
@@ -91,8 +91,31 @@ let emptyEnv : typeEnv = []
   FUNÇÃO COLLECTTYEQS
 *)
 
-let rec collectTyEqs (environment:typeEnv) (e:expr) = (TyInt, [])
+let rec collectTyEqs (environment:typeEnv) (e:expr) = 
+  match e with
+    Num(e) -> (TyInt, [], [])
+  | Bool(e) -> (TyBool, [], [])
+  | Bop(op, e1, e2) ->
+      let (exp1, aux1, aux2) = collectTyEqs environment e1 in
+      let (exp2, aux1, aux2) = collectTyEqs environment e2 in
+      (match op, exp1, exp2 with
 
+          Sum, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
+        | Sub, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
+        | Mult, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
+        | Div, TyInt, TyInt -> (TyInt, [e1; e2], [exp1; exp2])
+        | Eq, TyInt, TyInt -> (TyBool, [e1; e2], [exp1; exp2])
+        | And, TyBool, TyBool -> (TyBool, [e1; e2], [exp1; exp2])
+        | Or, TyBool, TyBool -> (TyBool, [e1; e2], [exp1; exp2])
+        | _ -> (TyX("BOP not found"), [], [])
+      )
+  | Not(e) -> 
+      let (exp1, aux1, aux2) = collectTyEqs environment e in
+      (match exp1 with 
+          TyBool -> (TyBool, [e], [exp1])
+        | _ -> (TyX("NOT not found"), [], [])
+      )
+  | _ -> (TyX("Expression not found"), [], [])
 ;;
 
 (* 
@@ -120,7 +143,7 @@ let applySubs sigma ty = TyBool
 let typeInfer (environment:typeEnv) (program:expr) : tipo =
 
   (* A função collectTyEqs retorna um tipo (ou variável de tipo) e um conjunto de equações de tipo *)
-  let (ty, typeEqSet) = collectTyEqs environment program in
+  let (ty, typeEqSet, typeConstraintsSet) = collectTyEqs environment program in
 
     (* A função unify retorna um substituição sigma, que é um mapeamento de variáveis de tipo para tipos 
        Pode falhar caso o conjunto não tenha solução, porque o programa é mal tipado *)
