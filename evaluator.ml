@@ -120,14 +120,14 @@ let applySubs sigma ty = TyBool
 let typeInfer (environment:typeEnv) (program:expr) : tipo =
 
   (* A função collectTyEqs retorna um tipo (ou variável de tipo) e um conjunto de equações de tipo *)
-  let (ty, typeEqSet) = collectTyEqs typeEnv program
+  let (ty, typeEqSet) = collectTyEqs environment program in
 
-  (* A função unify retorna um substituição sigma, que é um mapeamento de variáveis de tipo para tipos 
-     Pode falhar caso o conjunto não tenha solução, porque o programa é mal tipado *)
-  sigma = unify typeEqSet
+    (* A função unify retorna um substituição sigma, que é um mapeamento de variáveis de tipo para tipos 
+       Pode falhar caso o conjunto não tenha solução, porque o programa é mal tipado *)
+    let sigma = unify typeEqSet in
 
-  (* A função applySubs aplica a essa substituição ao tipo retornado por collectTyEqs e retorna o tipo final da expressão *)
-  applySubs sigma ty
+    (* A função applySubs aplica a essa substituição ao tipo retornado por collectTyEqs e retorna o tipo final da expressão *)
+    applySubs sigma ty
 
 ;;
 
@@ -138,4 +138,6 @@ let typeInfer (environment:typeEnv) (program:expr) : tipo =
 (* Limpa o ambiente *)
 let environment = emptyEnv;;
 
-typeInfer environment Not(Bool(true));;
+let not_test = Not(Bool(true));;
+
+typeInfer environment not_test;;
