@@ -100,61 +100,71 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
 
     (* Operações Binárias *)
     | Bop(op, e1, e2) ->
-        let (exp1, aux) = collectTyEqs environment e1 in
-        let (exp2, aux) = collectTyEqs environment e2 in
+        let (t1, c1) = collectTyEqs environment e1 in
+        let (t2, c2) = collectTyEqs environment e2 in
         (match op with
 
-            Sum -> (TyInt, [exp1; exp2; TyInt; TyInt])
-          | Sub -> (TyInt, [exp1; exp2; TyInt; TyInt])
-          | Mult -> (TyInt, [exp1; exp2; TyInt; TyInt])
-          | Div -> (TyInt, [exp1; exp2; TyInt; TyInt])
-          | Eq -> (TyBool, [exp1; exp2; TyInt; TyInt])
-          | And -> (TyBool, [exp1; exp2; TyBool; TyBool])
-          | Or -> (TyBool, [exp1; exp2; TyBool; TyBool])
+            Sum -> (TyInt, c1 @ c2 @ [TyInt; TyInt])
+          | Sub -> (TyInt, c1 @ c2 @ [TyInt; TyInt])
+          | Mult -> (TyInt, c1 @ c2 @ [TyInt; TyInt])
+          | Div -> (TyInt, c1 @ c2 @ [TyInt; TyInt])
+          | Eq -> (TyBool, c1 @ c2 @ [TyInt; TyInt])
+          | And -> (TyBool, c1 @ c2 @ [TyBool; TyBool])
+          | Or -> (TyBool, c1 @ c2 @ [TyBool; TyBool])
         )
 
     (* Not *)
     | Not(e) -> 
-        let (exp1, aux) = collectTyEqs environment e in
-        (TyBool, [exp1; TyBool])
+        let (t, c) = collectTyEqs environment e in
+        (TyBool, c @ [TyBool])
 
     (* Condicional *)
     | If(e1, e2, e3) ->
-        let (exp1, aux) = collectTyEqs environment e1 in
-        let (exp2, aux) = collectTyEqs environment e2 in
-        let (exp3, aux) = collectTyEqs environment e3 in
-        (exp2, [exp1; exp2; exp3; TyBool; exp2])
+        let (t1, c1) = collectTyEqs environment e1 in
+        let (t2, c2) = collectTyEqs environment e2 in
+        let (t3, c3) = collectTyEqs environment e3 in
+        (t2, c1 @ c2 @ c3 @ [TyBool; t2])
 
     (* Variável *)
     | Var(variable) -> 
-        let var = searchEnv variable environment in
-        (var, [])
+        let t = searchEnv variable environment in
+        (t, [])
 
     (* Aplicação *)
     | App(e1, e2) ->
-        let (exp1, aux) = collectTyEqs environment e1 in
-        let (exp2, aux) = collectTyEqs environment e2 in
-        (TyX("New"), [exp1; exp2; TyFn(exp1, TyX("New"))])
+        let (t1, c1) = collectTyEqs environment e1 in
+        let (t2, c2) = collectTyEqs environment e2 in
+        (TyX("App"), c1 @ c2 @ [TyFn(t1, TyX("New"))])
 
     (* Função *)
     | Func(variable, t, e) -> 
-        let (exp1, aux) = collectTyEqs (updateEnv variable t environment) e in
-        (TyFn(t, exp1), [exp1])
+        let (t1, c1) = collectTyEqs (updateEnv variable t environment) e in
+        (TyFn(t, t1), c1)
 
     (* Let *)
     | Let(variable, t, e1, e2) ->
-        let (exp1, aux) = collectTyEqs environment e1 in
-        let (exp2, aux) = collectTyEqs (updateEnv variable t environment) e2 in
-        (exp2, [exp1; exp2; t])
+        let (t1, c1) = collectTyEqs environment e1 in
+        let (t2, c2) = collectTyEqs (updateEnv variable t environment) e2 in
+        (t2, c1 @ c2 @ [t])
 
     (* Let Rec *)
     | Lrec(f, t1, t2, variable, t3, e1, e2) ->
         let t4 = TyFn(t1, t2) in
         let update1 = updateEnv variable t3 environment in
         let update2 = updateEnv f t4 update1 in
-        let (exp1, aux) = collectTyEqs update2 e1 in 
-        let (exp2, aux) = collectTyEqs (updateEnv f t4 environment) e2 in
-        (exp2, [exp1; exp2; t2])
+        let (t5, c5) = collectTyEqs update2 e1 in 
+        let (t6, c6) = collectTyEqs (updateEnv f t4 environment) e2 in
+        (t6, c5 @ c6 @ [t2])
+
+    (* Nil *)
+    | Nil ->
+        (TyList(TyX("Nil")), [])
+
+    (* List *)
+    | List(e1, e2) ->
+        let (t1, c1) = collectTyEqs environment e1 in
+        let (t2, c2) = collectTyEqs environment e2 in
+        (t2, c1 @ c2 @ [TyList(t1)])
 
     (* Erro *)
     | _ -> (TyX("Expression not found"), [])
@@ -184,8 +194,8 @@ let applySubs sigma ty = TyBool
 (* Recebe o ambiente de tipos e o programa para ser testado *)
 let typeInfer (environment:typeEnv) (program:expr) : tipo =
 
-  (* A função collectTyEqs retorna um tipo (ou variável de tipo) e um conjunto de equações de tipo *)
-  let (ty, typeEqSet) = collectTyEqs environment program in
+    (* A função collectTyEqs retorna um tipo (ou variável de tipo) e um conjunto de equações de tipo *)
+    let (ty, typeEqSet) = collectTyEqs environment program in
 
     (* A função unify retorna um substituição sigma, que é um mapeamento de variáveis de tipo para tipos 
        Pode falhar caso o conjunto não tenha solução, porque o programa é mal tipado *)
