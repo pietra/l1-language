@@ -147,6 +147,15 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
         let (exp2, aux) = collectTyEqs (updateEnv variable t environment) e2 in
         (exp2, [exp1; exp2; t])
 
+    (* Let Rec *)
+    | Lrec(f, t1, t2, variable, t3, e1, e2) ->
+        let t4 = TyFn(t1, t2) in
+        let update1 = updateEnv variable t3 environment in
+        let update2 = updateEnv f t4 update1 in
+        let (exp1, aux) = collectTyEqs update2 e1 in 
+        let (exp2, aux) = collectTyEqs (updateEnv f t4 environment) e2 in
+        (exp2, [exp1; exp2; t2])
+
     (* Erro *)
     | _ -> (TyX("Expression not found"), [])
 ;;
