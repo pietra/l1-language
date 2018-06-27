@@ -166,8 +166,30 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
         let (t2, c2) = collectTyEqs environment e2 in
         (t2, c1 @ c2 @ [TyList(t1)])
 
-    (* Erro *)
-    | _ -> (TyX("Expression not found"), [])
+    (* IsEmpty*)
+    | Isempty(e) ->
+        let (t, c) = collectTyEqs environment e in
+        (TyBool, c @ [TyList(TyX("IsEmpty"))])
+
+    (* Hd *)
+    | Hd(e) ->
+        let (t, c) = collectTyEqs environment e in
+        (TyX("Hd"), c @ [TyList(TyX("IsEmpty"))])
+
+    (* Tl *)
+    | Tl(e) ->
+        let (t, c) = collectTyEqs environment e in
+        (TyList(TyX("Tl")), c @ [TyList(TyX("IsEmpty"))])
+
+    (* Raise *)
+    | Raise ->
+        (TyList(TyX("Raise")), [])
+
+    (* Try *)
+    | Try(e1, e2) ->
+        let (t1, c1) = collectTyEqs environment e1 in
+        let (t2, c2) = collectTyEqs environment e2 in
+        (t2, c1 @ c2 @ [t1])
 ;;
 
 (* 
