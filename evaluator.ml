@@ -25,23 +25,23 @@ type operator = Sum | Sub | Mult | Div | Eq | And | Or
 ;;
 
 type tipo = TyX of string
-            | TyInt 
-            | TyBool 
-            | TyFn of tipo * tipo 
+            | TyInt
+            | TyBool
+            | TyFn of tipo * tipo
             | TyList of tipo
-and 
+and
      typeEnv = (variable * tipo) list
 ;;
 
 
-type expr = Num of int 
-          | Bool of bool 
+type expr = Num of int
+          | Bool of bool
           | Bop of operator * expr * expr
           | Not of expr
-          | If of expr * expr * expr 
-          | Var of variable 
-          | App of expr * expr 
-          | Func of variable * tipo * expr 
+          | If of expr * expr * expr
+          | Var of variable
+          | App of expr * expr
+          | Func of variable * tipo * expr
           | Let of variable * tipo * expr * expr
           | Lrec of variable * tipo * tipo * variable * tipo * expr * expr
           | Nil
@@ -54,11 +54,11 @@ type expr = Num of int
 ;;
 
 
-type value = Vnum of int 
-           | Vbool of bool 
+type value = Vnum of int
+           | Vbool of bool
            | Vclos of variable * expr * env
            | Vrclos of variable * variable * expr * env
-and  
+and
      env = (variable * value) list
 ;;
 
@@ -87,11 +87,11 @@ let emptyEnv : typeEnv = []
 ;;
 
 
-(* 
+(*
   FUNÇÃO COLLECTTYEQS
 *)
 
-let rec collectTyEqs (environment:typeEnv) (e:expr) = 
+let rec collectTyEqs (environment:typeEnv) (e:expr) =
     match e with
 
     (* Valores *)
@@ -114,7 +114,7 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
         )
 
     (* Not *)
-    | Not(e) -> 
+    | Not(e) ->
         let (t, c) = collectTyEqs environment e in
         (TyBool, c @ [TyBool])
 
@@ -126,7 +126,7 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
         (t2, c1 @ c2 @ c3 @ [TyBool; t2])
 
     (* Variável *)
-    | Var(variable) -> 
+    | Var(variable) ->
         let t = searchEnv variable environment in
         (t, [])
 
@@ -137,7 +137,7 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
         (TyX("App"), c1 @ c2 @ [TyFn(t1, TyX("New"))])
 
     (* Função *)
-    | Func(variable, t, e) -> 
+    | Func(variable, t, e) ->
         let (t1, c1) = collectTyEqs (updateEnv variable t environment) e in
         (TyFn(t, t1), c1)
 
@@ -152,7 +152,7 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
         let t4 = TyFn(t1, t2) in
         let update1 = updateEnv variable t3 environment in
         let update2 = updateEnv f t4 update1 in
-        let (t5, c5) = collectTyEqs update2 e1 in 
+        let (t5, c5) = collectTyEqs update2 e1 in
         let (t6, c6) = collectTyEqs (updateEnv f t4 environment) e2 in
         (t6, c5 @ c6 @ [t2])
 
@@ -170,15 +170,74 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
     | _ -> (TyX("Expression not found"), [])
 ;;
 
-(* 
-  FUNÇÃO UNIFY
+(*
+  FUNÇÃO UNIFY: dadas as equações de tipo, verifica se é possível uma substituição
+
+    Regras:
+    1. σ, (int = int) :: C −→ σ, C
+    2. σ, (bool = bool) :: C −→ σ, C
+    3. σ, (X = X) :: C −→ σ, C
+    4. σ, (X = T) :: C −→ σ @ [(X, T)], {T/X} C se X não ocorre em T
+    5. σ, (T = X) :: C −→ σ @ [(X, T)], {T/X} C se X não ocorre em T
+    6. σ, (T1 → T2 = T3 → T4) :: C −→ σ, (T1 = T3) :: (T2 = T4) :: C
+    7. σ, (T1 list = T2 list) :: C −→ σ, (T1 = T2) :: C
 *)
 
-let unify typeEqSet = TyInt
+exception UnifyError of string
+
+let unify tyEquations =
+
+    (* Tipo X ocorre em T? *)
+    let rec occurs tyX tyT = match tyT with
+        | TyList(tyT1) -> occurs tyX tyT1
+        | TyFn(tyT1,tyT2) -> occurs tyX tyT1 || occurs tyX tyT2
+        | (TyInt | TyBool ) -> false
+        | TyX(s) -> (s=tyX)
+    in
+
+    (* Substitui X por T no tipo S*)
+    let rec subsType tyX tyT tyS = match tyS with
+        | TyList(tyS1) -> TyList(subsType tyX tyT tyS1)
+        | TyFn(tyS1, tyS2) -> TyFn(subsType tyX tyT tyS1, subsType tyX tyT tyS2)
+        | TyInt -> TyInt
+        | TyBool -> TyBool
+        | TyX(s) -> (if s=tyX then tyT else TyX(s)) (* se for X, troca por T*)
+    in
+
+    (* Para cada equação do conjunto, substitui tyX por tyT *)
+    let subsEquations tyX tyT tyEquations =
+        List.map (fun (tyS1,tyS2) -> (subsType tyX tyT tyS1, subsType tyX tyT tyS2)) tyEquations
+    in
+
+    let rec unify_rec tyEquations = match tyEquations with
+        | [] -> []
+
+        | (TyInt,TyInt) :: tail -> unify_rec tail (* 1 *)
+
+        | (TyBool,TyBool) :: tail -> unify_rec tail (* 2 *)
+
+        | (TyX(tyX),tyT) :: tail -> (* 4 *)
+            if tyT = TyX(tyX) then unify_rec tail (* 3 *)
+            else if occurs tyX tyT then raise (UnifyError "Unify failed. X occurs in T.")
+            else List.append (unify_rec (subsEquations tyX tyT tail)) [(TyX(tyX),tyT)]
+
+        | (tyT,TyX(tyX)) :: tail -> (* 5 *)
+            if tyT = TyX(tyX) then unify_rec tail (* 3 *)
+            else if occurs tyX tyT then raise (UnifyError "Unify failed. X occurs in T.")
+            else List.append (unify_rec (subsEquations tyX tyT tail)) [(TyX(tyX),tyT)]
+
+        | (TyFn(tyT1,tyT2),TyFn(tyT3,tyT4)) :: tail -> unify_rec ((tyT1,tyT3) :: (tyT2,tyT4) :: tail) (* 6 *)
+
+        | (TyList(tyT1),TyList(tyT2)) :: tail -> unify_rec ((tyT1,tyT2) :: tail) (* 7 *)
+
+        | (tyS,tyT)::tail -> raise (UnifyError "Unify failed. No solutions found.")
+
+     in unify_rec tyEquations
 
 ;;
 
-(* 
+
+(*
   FUNÇÃO APPLYSUBS
 *)
 
@@ -187,7 +246,7 @@ let applySubs sigma ty = TyBool
 ;;
 
 
-(* 
+(*
   ALGORITMO TYPEINFER
 *)
 
@@ -197,7 +256,7 @@ let typeInfer (environment:typeEnv) (program:expr) : tipo =
     (* A função collectTyEqs retorna um tipo (ou variável de tipo) e um conjunto de equações de tipo *)
     let (ty, typeEqSet) = collectTyEqs environment program in
 
-    (* A função unify retorna um substituição sigma, que é um mapeamento de variáveis de tipo para tipos 
+    (* A função unify retorna um substituição sigma, que é um mapeamento de variáveis de tipo para tipos
        Pode falhar caso o conjunto não tenha solução, porque o programa é mal tipado *)
     let sigma = unify typeEqSet in
 
