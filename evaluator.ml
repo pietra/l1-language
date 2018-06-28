@@ -51,6 +51,9 @@ type expr = Num of int
           | Tl of expr
           | Raise
           | Try of expr * expr
+          | FuncIm of variable * expr
+          | LetIm of variable * expr * expr
+          | LrecIm of variable * variable * expr * expr
 ;;
 
 
@@ -85,6 +88,30 @@ let rec searchEnv variable environment : tipo = match environment with
 (* Ambiente de tipos vazio *)
 let emptyEnv : typeEnv = []
 ;;
+
+
+(*
+  FUNÇÕES AUXILIARES
+*)
+
+(* Tipo X ocorre em T? *)
+let rec occurs tyX tyT = match tyT with
+    | TyList(tyT1) -> occurs tyX tyT1
+    | TyFn(tyT1,tyT2) -> occurs tyX tyT1 || occurs tyX tyT2
+    | (TyInt | TyBool ) -> false
+    | TyX(s) -> (s=tyX)
+
+(* Substitui X por T no tipo S *)
+let rec subsType tyX tyT tyS = match tyS with
+    | TyList(tyS1) -> TyList(subsType tyX tyT tyS1)
+    | TyFn(tyS1, tyS2) -> TyFn(subsType tyX tyT tyS1, subsType tyX tyT tyS2)
+    | TyInt -> TyInt
+    | TyBool -> TyBool
+    | TyX(s) -> (if s=tyX then tyT else TyX(s)) (* se for X, troca por T*)
+
+(* Para cada equação do conjunto, substitui tyX por tyT *)
+let subsEquations tyX tyT tyEquations =
+    List.map (fun (tyS1,tyS2) -> (subsType tyX tyT tyS1, subsType tyX tyT tyS2)) tyEquations
 
 
 (*
@@ -179,7 +206,7 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
     (* Tl *)
     | Tl(e) ->
         let (t, c) = collectTyEqs environment e in
-        (TyList(TyX("Tl")), c @ [(t, TyList(TyX("Tl"))])
+        (TyList(TyX("Tl")), c @ [(t, TyList(TyX("Tl")))])
 
     (* Raise *)
     | Raise ->
@@ -190,6 +217,26 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
         let (t1, c1) = collectTyEqs environment e1 in
         let (t2, c2) = collectTyEqs environment e2 in
         (t2, c1 @ c2 @ [(t1, t2)])
+
+    (* Função com tipagem Implícita *)
+    | FuncIm(variable, e) ->
+        let (t1, c1) = collectTyEqs (updateEnv variable (TyX("FuncIm")) environment) e in
+        (TyFn(TyX("FuncIm"), t1), c1)
+
+    (* Let com tipagem Implícita *)
+    | LetIm(variable, e1, e2) ->
+        let (t1, c1) = collectTyEqs environment e1 in
+        let (t2, c2) = collectTyEqs (updateEnv variable (TyX("LetIm")) environment) e2 in
+        (t2, c1 @ c2 @ [(TyX("FuncIm"), t1)])
+
+    (* Let Rec com tipagem Implícita *)
+    | LrecIm(f, variable, e1, e2) ->
+        let update1 = updateEnv variable (TyX("LrecIm")) environment in
+        let update2 = updateEnv f (TyX("LrecIm")) update1 in
+        let (t5, c5) = collectTyEqs update2 e1 in
+        let (t6, c6) = collectTyEqs (updateEnv f (TyX("LrecIm")) environment) e2 in
+        (t6, c5 @ c6 @ [(t5, TyX("LrecIm"))])
+
 ;;
 
 (*
@@ -208,28 +255,6 @@ let rec collectTyEqs (environment:typeEnv) (e:expr) =
 exception UnifyError of string
 
 let unify tyEquations =
-
-    (* Tipo X ocorre em T? *)
-    let rec occurs tyX tyT = match tyT with
-        | TyList(tyT1) -> occurs tyX tyT1
-        | TyFn(tyT1,tyT2) -> occurs tyX tyT1 || occurs tyX tyT2
-        | (TyInt | TyBool ) -> false
-        | TyX(s) -> (s=tyX)
-    in
-
-    (* Substitui X por T no tipo S*)
-    let rec subsType tyX tyT tyS = match tyS with
-        | TyList(tyS1) -> TyList(subsType tyX tyT tyS1)
-        | TyFn(tyS1, tyS2) -> TyFn(subsType tyX tyT tyS1, subsType tyX tyT tyS2)
-        | TyInt -> TyInt
-        | TyBool -> TyBool
-        | TyX(s) -> (if s=tyX then tyT else TyX(s)) (* se for X, troca por T*)
-    in
-
-    (* Para cada equação do conjunto, substitui tyX por tyT *)
-    let subsEquations tyX tyT tyEquations =
-        List.map (fun (tyS1,tyS2) -> (subsType tyX tyT tyS1, subsType tyX tyT tyS2)) tyEquations
-    in
 
     let rec unify_rec tyEquations = match tyEquations with
         | [] -> []
@@ -263,8 +288,8 @@ let unify tyEquations =
   FUNÇÃO APPLYSUBS
 *)
 
-let applySubs sigma ty = TyBool
-
+let applySubs sigma ty = 
+    List.fold_left (fun s (TyX(tyX),tyC) -> subsType tyX tyC s) ty (List.rev sigma)
 ;;
 
 
